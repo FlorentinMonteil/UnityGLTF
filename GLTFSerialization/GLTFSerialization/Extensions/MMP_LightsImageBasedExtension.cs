@@ -1,28 +1,29 @@
-﻿using GLTF.Extensions;
-using GLTF.Math;
+﻿using GLTF.Math;
+using GLTF.Schema;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace GLTF.Schema
 {
-	public class EXT_LightsImageBasedExtension : IExtension
+	public class MMP_LightsImageBasedExtension : IExtension
 	{
+		public List<MMPImageBasedLight> Lights;
 
-		public List<ImageBasedLight> Lights;
-
-		public EXT_LightsImageBasedExtension()
+		public MMP_LightsImageBasedExtension()
 		{
-			Lights = new List<ImageBasedLight>();
+			Lights = new List<MMPImageBasedLight>();
 		}
 
 		public IExtension Clone(GLTFRoot gltfRoot)
 		{
-			var clone = new EXT_LightsImageBasedExtension();
+			var clone = new MMP_LightsImageBasedExtension();
 			for (int i = 0; i < Lights.Count; i++)
 			{
-				clone.Lights.Add(new ImageBasedLight(Lights[i], gltfRoot));
+				clone.Lights.Add(new MMPImageBasedLight(Lights[i], gltfRoot));
 			}
 			return clone;
 		}
@@ -37,28 +38,26 @@ namespace GLTF.Schema
 			}
 			writer.WriteEndArray();
 
-			return new JProperty(EXT_LightsImageBasedExtensionFactory.EXTENSION_NAME,
+			return new JProperty(MMP_LightsImageBasedExtensionFactory.EXTENSION_NAME,
 				new JObject(
-					new JProperty(EXT_LightsImageBasedExtensionFactory.PNAME_LIGHTS, writer.Token)
+					new JProperty(MMP_LightsImageBasedExtensionFactory.PNAME_LIGHTS, writer.Token)
 				)
 			);
 		}
 	}
 
-
-	public class ImageBasedLight : GLTFChildOfRootProperty
+	public class MMPImageBasedLight : GLTFChildOfRootProperty
 	{
 
 		private const string PNAME_NAME = "name";
 		private const string PNAME_ROTATION = "rotation";
 		private const string PNAME_INTENSITY = "intensity";
 		private const string PNAME_IRRADIANCE_COEFFICIENTS = "irradianceCoefficients";
-		private const string PNAME_SPECULAR_IMAGES = "specularImages";
+		private const string PNAME_SPECULAR_IMAGE = "specularImage";
 		private const string PNAME_SPECULAR_IMAGE_SIZE = "specularImageSize";
 
 		public static readonly Quaternion ROTATION_DEFAULT = Quaternion.Identity;
 		public static readonly double INTENSITY_DEFAULT = 1d;
-
 
 		/// <summary>
 		/// Name of the light
@@ -80,30 +79,23 @@ namespace GLTF.Schema
 		/// </summary>
 		public double[][] IrradianceCoefficients;
 
-		/// <summary>
-		/// Declares an array of the first N mips of the prefiltered cubemap.Each mip is, in turn, defined with an array of 6 images, one for each cube face.i.e. this is an Nx6 array.
-		/// </summary>
+		public ImageId SpecularImage;
 
-		public ImageId[][] SpecularImages;
-
-		/// <summary>
-		/// "The dimension (in pixels) of the first specular mip. This is needed to determine, pre-load, the total number of mips needed."
-		/// </summary>
 		public int SpecularImageSize;
 
-		public ImageBasedLight()
+		public MMPImageBasedLight()
 		{
 
 		}
 
-		public ImageBasedLight(ImageBasedLight light, GLTFRoot gltfRoot) : base(light, gltfRoot)
+		public MMPImageBasedLight(MMPImageBasedLight light, GLTFRoot gltfRoot) : base(light, gltfRoot)
 		{
 
 			LightName = light.LightName != null ? light.Name : null;
 			Rotation = light.Rotation;
 			Intensity = light.Intensity;
 			IrradianceCoefficients = light.IrradianceCoefficients;
-			SpecularImages = light.SpecularImages;
+			SpecularImage = light.SpecularImage;
 			SpecularImageSize = light.SpecularImageSize;
 
 		}
@@ -113,11 +105,11 @@ namespace GLTF.Schema
 
 			writer.WriteStartObject();
 
-			if(LightName != null)
-            {
+			if (LightName != null)
+			{
 				writer.WritePropertyName(PNAME_NAME);
 				writer.WriteValue(LightName);
-            }
+			}
 
 			// ROTATION
 			if (Rotation != Quaternion.Identity)
@@ -150,19 +142,9 @@ namespace GLTF.Schema
 			}
 			writer.WriteEndArray();
 
-			// SPECULAR_IMAGES
-			writer.WritePropertyName(PNAME_SPECULAR_IMAGES);
-			writer.WriteStartArray();
-			for (var x = 0; x < SpecularImages.Length; x++)
-			{
-				writer.WriteStartArray();
-				for (var y = 0; y < 6; y++)
-				{
-					writer.WriteValue(SpecularImages[x][y].Id);
-				}
-				writer.WriteEndArray();
-			}
-			writer.WriteEndArray();
+			// SPECULAR_IMAGE
+			writer.WritePropertyName(PNAME_SPECULAR_IMAGE);
+			writer.WriteValue(SpecularImage.Id);
 
 			//PNAME_SPECULAR_IMAGE_SIZE
 			writer.WritePropertyName(PNAME_SPECULAR_IMAGE_SIZE);
@@ -180,35 +162,35 @@ namespace GLTF.Schema
 	}
 
 
-	public class ImageBasedLightId : GLTFId<ImageBasedLight>
+	public class MMPImageBasedLightId : GLTFId<MMPImageBasedLight>
 	{
-		public ImageBasedLightId()
+		public MMPImageBasedLightId()
 		{
 		}
 
-		public ImageBasedLightId(ImageBasedLightId id, GLTFRoot newRoot) : base(id, newRoot)
+		public MMPImageBasedLightId(MMPImageBasedLightId id, GLTFRoot newRoot) : base(id, newRoot)
 		{
 		}
 
-		public override ImageBasedLight Value
+		public override MMPImageBasedLight Value
 		{
 			get
 			{
 				if (Root.Extensions.TryGetValue(EXT_LightsImageBasedExtensionFactory.EXTENSION_NAME, out IExtension iextension))
 				{
-					EXT_LightsImageBasedExtension extension = iextension as EXT_LightsImageBasedExtension;
+					MMP_LightsImageBasedExtension extension = iextension as MMP_LightsImageBasedExtension;
 					return extension.Lights[Id];
 				}
 				else
 				{
-					throw new Exception("EXT_lights_image_based not found on root object");
+					throw new Exception("MMP_lights_image_based not found on root object");
 				}
 			}
 		}
 
-		public static ImageBasedLightId Deserialize(GLTFRoot root, JsonReader reader)
+		public static MMPImageBasedLightId Deserialize(GLTFRoot root, JsonReader reader)
 		{
-			return new ImageBasedLightId
+			return new MMPImageBasedLightId
 			{
 				Id = reader.ReadAsInt32().Value,
 				Root = root
@@ -218,23 +200,24 @@ namespace GLTF.Schema
 
 	}
 
-	public class EXT_LightsImageBasedSceneExtension : IExtension
-    {
-		public ImageBasedLightId LightId;
 
-		public EXT_LightsImageBasedSceneExtension()
+	public class MMP_LightsImageBasedSceneExtension : IExtension
+	{
+		public MMPImageBasedLightId LightId;
+
+		public MMP_LightsImageBasedSceneExtension()
 		{
 
 		}
 
-		public EXT_LightsImageBasedSceneExtension(ImageBasedLightId lightId, GLTFRoot gltfRoot)
+		public MMP_LightsImageBasedSceneExtension(MMPImageBasedLightId lightId, GLTFRoot gltfRoot)
 		{
 			LightId = lightId;
 		}
 
-		public EXT_LightsImageBasedSceneExtension(int lightId, GLTFRoot gltfRoot)
+		public MMP_LightsImageBasedSceneExtension(int lightId, GLTFRoot gltfRoot)
 		{
-			LightId = new ImageBasedLightId
+			LightId = new MMPImageBasedLightId
 			{
 				Id = lightId,
 				Root = gltfRoot
@@ -244,14 +227,14 @@ namespace GLTF.Schema
 
 		public IExtension Clone(GLTFRoot root)
 		{
-			return new EXT_LightsImageBasedSceneExtension(LightId.Id, root);
+			return new MMP_LightsImageBasedSceneExtension(LightId.Id, root);
 		}
 
 		public JProperty Serialize()
 		{
-			return new JProperty(EXT_LightsImageBasedExtensionFactory.EXTENSION_NAME,
+			return new JProperty(MMP_LightsImageBasedExtensionFactory.EXTENSION_NAME,
 				new JObject(
-					new JProperty(EXT_LightsImageBasedExtensionFactory.PNAME_LIGHT, LightId.Id)
+					new JProperty(MMP_LightsImageBasedExtensionFactory.PNAME_LIGHT, LightId.Id)
 				)
 			);
 		}

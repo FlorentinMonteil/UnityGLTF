@@ -91,16 +91,13 @@ namespace UnityGLTF
         );
         idx++;
 
-        var destRenderTexture = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
-        Graphics.Blit(texture, destRenderTexture);
-
         TextureFormat tgt = targetFormat;
         TextureFormat fmt = Compressed_GetSourceFormat(tgt);
         bool mip = setting.GenerateMipMap;
 
         Texture2D exportTexture = new Texture2D(texture.width, texture.height, fmt, mip);
+        exportTexture.SetPixels32(texture.GetPixels32());
 
-        exportTexture.ReadPixels(new Rect(0, 0, destRenderTexture.width, destRenderTexture.height), 0, 0);
         FlipTextureVertically(exportTexture);
         EditorUtility.CompressTexture(exportTexture, tgt, TextureCompressionQuality.Best);
         exportTexture.Apply();
@@ -120,9 +117,6 @@ namespace UnityGLTF
           EditorUtility.ClearProgressBar();
           throw e;
         }
-
-
-        RenderTexture.ReleaseTemporary(destRenderTexture);
 
         if (Application.isEditor)
         {

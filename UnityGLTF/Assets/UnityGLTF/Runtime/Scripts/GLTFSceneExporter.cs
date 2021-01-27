@@ -354,10 +354,24 @@ namespace UnityGLTF
 			scene.Nodes = new List<NodeId>(rootObjTransforms.Length);
 			foreach (var transform in rootObjTransforms)
 			{
-        NodeId nodeid = ExportNode(transform);
+				NodeId nodeid = ExportNode(transform);
 				if( nodeid != null ) {
-          scene.Nodes.Add( nodeid );
-        }
+					scene.Nodes.Add( nodeid );
+				}
+
+					var probes = transform.GetComponentsInChildren<ReflectionProbe>();
+					bool hasIBL = (scene.Extensions != null && !scene.Extensions.ContainsKey(EXT_LightsImageBasedExtensionFactory.EXTENSION_NAME));
+					if (probes.Length > 0 && !hasIBL)
+					{
+							ExportIBL(probes[0], scene);
+							ExportMMPIBL(probes[0], scene);
+					}
+
+					if (probes.Length > 0 && hasIBL)
+					{
+							Debug.LogWarning("Multiple reflection probes detected, only one will be exported");
+					}
+				
 			}
 
 
@@ -402,7 +416,7 @@ namespace UnityGLTF
 		private NodeId ExportNode(Transform nodeTransform)
 		{
 
-      if( ! IsEnabledNode(nodeTransform) ) return null;
+			if( ! IsEnabledNode(nodeTransform) ) return null;
 
 			var node = new Node();
 
@@ -418,19 +432,19 @@ namespace UnityGLTF
 
 			if(IsSkinnedNode(nodeTransform))
 			{
-				  _skinnedNodes.Add(nodeTransform);
+					_skinnedNodes.Add(nodeTransform);
 			}
 
 			if( IsLightNode( nodeTransform) ){
-        node.AddChild( CreateLightNode( nodeTransform.GetComponent<Light>() ) );
+				node.AddChild( CreateLightNode( nodeTransform.GetComponent<Light>() ) );
 			}
 
 			// export camera attached to node
-  		// Create additional sub node to flip camera Z
+			// Create additional sub node to flip camera Z
 			Camera unityCamera = nodeTransform.GetComponent<Camera>();
 			if( unityCamera != null ){
-        node.AddChild( CreateCameraNode( unityCamera ) );
-      }
+				node.AddChild( CreateCameraNode( unityCamera ) );
+			}
 
 			// If object is on top of the selection, use global transform
 			bool useLocal = !Array.Exists(_rootTransforms, element => element == nodeTransform);
@@ -465,13 +479,13 @@ namespace UnityGLTF
 
 
 
-      foreach (var child in nonPrimitives)
-      {
-        NodeId nodeid = ExportNode(child.transform);
+			foreach (var child in nonPrimitives)
+			{
+				NodeId nodeid = ExportNode(child.transform);
 				if( nodeid != null ) {
-          node.AddChild( nodeid );
-        }
-      }
+					node.AddChild( nodeid );
+				}
+			}
 
 			return id;
 		}
@@ -650,17 +664,17 @@ namespace UnityGLTF
 		private long AppendToBufferMultiplyOf4(long byteOffset, long byteLength)
 		{
 			
-		    var moduloOffset = byteLength % 4;
-		    if (moduloOffset > 0)
-		    {
+				var moduloOffset = byteLength % 4;
+				if (moduloOffset > 0)
+				{
 			for (int i = 0; i < (4 - moduloOffset); i++)
 			{
-			    _bufferWriter.Write((byte)0x00);
+					_bufferWriter.Write((byte)0x00);
 			}
 			byteLength = _bufferWriter.BaseStream.Position - byteOffset;
-		    }
+				}
 
-		    return byteLength;
+				return byteLength;
 		}
 
 
