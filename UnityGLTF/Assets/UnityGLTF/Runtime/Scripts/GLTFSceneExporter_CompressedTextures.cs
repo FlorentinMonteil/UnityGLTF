@@ -5,6 +5,7 @@ using System.IO;
 using GLTF.Schema;
 using UnityEditor;
 using UnityEngine;
+using UnityGLTF.Cache;
 using WrapMode = GLTF.Schema.WrapMode;
 
 namespace UnityGLTF
@@ -64,7 +65,6 @@ namespace UnityGLTF
       if (!setting.Compress)
         return;
 
-
       // ==========
       // FORMATS
       // TODO: update with alpha or configurable maybe
@@ -91,40 +91,44 @@ namespace UnityGLTF
         );
         idx++;
 
+        byte[] data = new byte[0];
         TextureFormat tgt = targetFormat;
+
+        string ext = KTX.GetExt(targetFormat);
         TextureFormat fmt = Compressed_GetSourceFormat(tgt);
         bool mip = setting.GenerateMipMap;
 
-        Texture2D exportTexture = new Texture2D(texture.width, texture.height, fmt, mip);
-        exportTexture.SetPixels32(texture.GetPixels32());
+        TextureCompressedCacheData cache;
+        bool validCache = reg.GetOrCreateCacheData(source, setting, tgt, out cache);
 
-        FlipTextureVertically(exportTexture);
-        EditorUtility.CompressTexture(exportTexture, tgt, TextureCompressionQuality.Best);
-        exportTexture.Apply();
+        if (!validCache)
+        {
+          Texture2D exportTexture = new Texture2D(texture.width, texture.height, fmt, mip);
+          exportTexture.SetPixels32(texture.GetPixels32());
+
+          FlipTextureVertically(exportTexture);
+          EditorUtility.CompressTexture(exportTexture, tgt, TextureCompressionQuality.Best);
+          exportTexture.Apply();
+          // Write data
+          data = KTX.Encode(exportTexture, exportTexture.format);
+          cache.WriteBytes(data);
+          GameObject.DestroyImmediate(exportTexture);
+        }
+        else
+        {
+          data = cache.ReadBytes();
+        }
 
         try
         {
-
-          // Write data
-          byte[] data = KTX.Encode(exportTexture, exportTexture.format);
           var filePath = ConstructImageFilenamePath(source, outputPath);
-          string p = filePath + KTX.GetExt(targetFormat);
+          string p = filePath + ext;
           File.WriteAllBytes(p, data);
-
         }
         catch (Exception e)
         {
           EditorUtility.ClearProgressBar();
           throw e;
-        }
-
-        if (Application.isEditor)
-        {
-          GameObject.DestroyImmediate(exportTexture);
-        }
-        else
-        {
-          GameObject.Destroy(exportTexture);
         }
 
       }
